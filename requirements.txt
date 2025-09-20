@@ -1,0 +1,25 @@
+# 核心数据科学库
+pandas>=1.3.0
+numpy>=1.21.0
+scikit-learn>=1.0.0
+matplotlib>=3.4.0
+seaborn>=0.11.0
+
+# 配置管理
+pyyaml>=5.4.0
+
+# 测试
+pytest>=6.0.0
+pytest-cov>=2.10.0
+
+# 机器学习
+joblib>=1.0.0
+
+# 开发工具
+jupyter>=1.0.0
+black>=21.0.0
+flake8>=3.8.0
+
+# 可选依赖
+# jupyterlab>=3.0.0
+# notebook>=6.0.0
