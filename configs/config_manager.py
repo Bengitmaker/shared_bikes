@@ -19,12 +19,19 @@ class ConfigManager:
         Args:
             config_path (str): 配置文件路径
         """
-        self.config_path = Path(config_path)
+        # 使用绝对路径确保在任何工作目录下都能找到配置文件
+        self.config_path = Path(config_path).absolute() if not Path(config_path).is_absolute() else Path(config_path)
         self._config: Optional[Dict[str, Any]] = None
         
         # 确保配置文件存在
         if not self.config_path.exists():
-            raise FileNotFoundError(f"配置文件不存在: {self.config_path}")
+            # 如果提供的路径不存在，尝试在项目根目录下查找
+            project_root = Path(__file__).parent.parent.absolute()
+            alt_path = project_root / config_path
+            if alt_path.exists():
+                self.config_path = alt_path
+            else:
+                raise FileNotFoundError(f"配置文件不存在: {self.config_path}")
             
         self.load_config()
         self.create_directories()
@@ -73,7 +80,12 @@ class ConfigManager:
             Path: 路径对象
         """
         path_str = self.get(path_key, "")
-        return Path(path_str)
+        # 如果是相对路径，则相对于项目根目录
+        path = Path(path_str)
+        if not path.is_absolute():
+            project_root = self.config_path.parent.parent
+            return (project_root / path).absolute()
+        return path.absolute()
     
     def create_directories(self) -> None:
         """根据配置创建必要的目录"""
@@ -99,5 +111,19 @@ class ConfigManager:
     def configure_logging(self) -> None:
         """配置日志系统"""
         # 延迟导入logger模块，避免循环导入
-        from shared_bikes.logs.logger import configure_root_logger
-        configure_root_logger()
+        try:
+            from shared_bikes.logs.logger import configure_root_logger
+            configure_root_logger()
+        except ImportError:
+            # 如果无法导入，添加项目根目录到sys.path再尝试
+            import sys
+            project_root = self.config_path.parent.parent
+            if str(project_root) not in sys.path:
+                sys.path.insert(0, str(project_root))
+            try:
+                from shared_bikes.logs.logger import configure_root_logger
+                configure_root_logger()
+            except ImportError:
+                # 如果还是无法导入，跳过日志配置
+                print("警告: 无法配置日志系统")
+                pass

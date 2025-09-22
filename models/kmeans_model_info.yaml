@@ -1,0 +1,11 @@
+feature_columns:
+- hour
+- workingday
+- weather
+- temp
+- humidity
+- windspeed
+inertia: 36102.65834845486
+model_name: kmeans_model
+n_clusters: 5
+timestamp: '2025-09-22T16:41:40.168750'
