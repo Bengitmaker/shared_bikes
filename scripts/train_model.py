@@ -1,9 +1,3 @@
-"""
-模型训练脚本
-
-用于训练共享单车使用模式的聚类模型。
-"""
-
 import os
 import sys
 from pathlib import Path
@@ -16,25 +10,28 @@ import joblib
 import argparse
 from datetime import datetime
 
-# 添加项目根目录到Python路径
-root_dir = Path(__file__).parent.parent.absolute()
-sys.path.insert(0, str(root_dir))
+# Project root path
+project_root = Path(__file__).parent.parent.absolute()
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
-# 导入配置
-from configs.config_manager import ConfigManager
-
-# 创建配置实例
-config = ConfigManager(str(root_dir / "configs" / "config.yaml"))
+# Import config manager from configs directory
+try:
+    from configs.config_manager import ConfigManager
+    config = ConfigManager()
+except Exception as e:
+    print(f"警告: 配置管理器初始化失败: {e}")
+    config = None
 
 def load_data(data_path: str) -> pd.DataFrame:
     """
-    加载数据
+    Load data
     
     Args:
-        data_path (str): 数据文件路径
+        data_path (str): Data file path
         
     Returns:
-        pd.DataFrame: 加载的数据
+        pd.DataFrame: Loaded data
     """
     if not Path(data_path).exists():
         raise FileNotFoundError(f"数据文件不存在: {data_path}")
@@ -45,28 +42,28 @@ def load_data(data_path: str) -> pd.DataFrame:
 
 def prepare_features(df: pd.DataFrame) -> tuple:
     """
-    准备特征数据
+    Prepare feature data
     
     Args:
-        df (pd.DataFrame): 原始数据
+        df (pd.DataFrame): Raw data
         
     Returns:
-        tuple: 特征数据和标准化器
+        tuple: Feature data and scaler
     """
-    # 从datetime列提取hour信息
+    # Extract hour information from datetime column
     df['datetime'] = pd.to_datetime(df['datetime'])
     df['hour'] = df['datetime'].dt.hour
     
-    # 选择用于聚类的特征
+    # Select features for clustering
     feature_columns = ['hour', 'workingday', 'weather', 'temp', 'humidity', 'windspeed']
     
-    # 处理缺失值
+    # Handle missing values
     df_clean = df.dropna(subset=feature_columns)
     
-    # 提取特征
+    # Extract features
     X = df_clean[feature_columns].values
     
-    # 标准化
+    # Standardize
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
     
@@ -75,15 +72,15 @@ def prepare_features(df: pd.DataFrame) -> tuple:
 
 def train_kmeans_model(X: np.ndarray, n_clusters: int, random_state: int = 42) -> KMeans:
     """
-    训练K-means模型
+    Train K-means model
     
     Args:
-        X (np.ndarray): 特征数据
-        n_clusters (int): 聚类数量
-        random_state (int): 随机种子
+        X (np.ndarray): Feature data
+        n_clusters (int): Number of clusters
+        random_state (int): Random seed
         
     Returns:
-        KMeans: 训练好的模型
+        KMeans: Trained model
     """
     print(f"训练K-means模型 (n_clusters={n_clusters})...")
     
@@ -101,28 +98,28 @@ def train_kmeans_model(X: np.ndarray, n_clusters: int, random_state: int = 42) -
 
 def save_model(model: KMeans, scaler: StandardScaler, output_dir: str, model_name: str = "kmeans_model"):
     """
-    保存模型和标准化器
+    Save model and scaler
     
     Args:
-        model (KMeans): 训练好的模型
-        scaler (StandardScaler): 标准化器
-        output_dir (str): 输出目录
-        model_name (str): 模型名称
+        model (KMeans): Trained model
+        scaler (StandardScaler): Scaler
+        output_dir (str): Output directory
+        model_name (str): Model name
     """
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
     
-    # 保存模型
+    # Save model
     model_path = output_path / f"{model_name}.joblib"
     joblib.dump(model, model_path)
     print(f"模型已保存: {model_path}")
     
-    # 保存标准化器
+    # Save scaler
     scaler_path = output_path / f"{model_name}_scaler.joblib"
     joblib.dump(scaler, scaler_path)
     print(f"标准化器已保存: {scaler_path}")
     
-    # 保存模型信息
+    # Save model information
     info = {
         'model_name': model_name,
         'n_clusters': model.n_clusters, # type: ignore
@@ -139,35 +136,35 @@ def save_model(model: KMeans, scaler: StandardScaler, output_dir: str, model_nam
     print(f"模型信息已保存: {info_path}")
 
 def main(data_path: str = None, output_dir: str = None, n_clusters: int = None):  # type: ignore
-    """主函数"""
+    """Main function"""
     print("开始训练共享单车聚类模型...\n")
     
-    # 获取配置
+    # Get config
     data_config = config.get_path('paths.data')
     models_config = config.get_path('paths.models')
     
-    # 设置默认参数
+    # Set default parameters
     data_path = data_path or str(data_config / "train.csv")  # 修改为正确的路径
     output_dir = output_dir or str(models_config)
     n_clusters = n_clusters or config.get('model.kmeans.n_clusters', 5)
     
     try:
-        # 1. 加载数据
+        # 1. Load data
         df = load_data(data_path)
         
-        # 2. 准备特征
+        # 2. Prepare features
         X, scaler, df_clean = prepare_features(df)
         
-        # 3. 训练模型
+        # 3. Train model
         model = train_kmeans_model(X, n_clusters)
         
-        # 4. 保存模型
+        # 4. Save model
         save_model(model, scaler, output_dir)
         
-        print("\n✅ 模型训练完成！")
+        print("\nSuccess 模型训练完成！")
         
     except Exception as e:
-        print(f"❌ 训练失败: {e}")
+        print(f"Error 训练失败: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":

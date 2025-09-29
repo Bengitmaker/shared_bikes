@@ -1,5 +1,7 @@
 """
-脚本包初始化
-
-此目录包含项目的各种实用脚本。
+Scripts Package Initialization
+Directory with executable scripts for the analysis pipeline.
 """
+
+# Make scripts directory a Python package
+# Enable direct import of script modules from package

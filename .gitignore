@@ -159,6 +159,25 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
+# VS Code
+.vscode/
+
+# Logs
+logs/
+*.log
+
+# Model files
+models/*.joblib
+
+# Output files
+output/
+
+# Data files (uncomment if you don't want to commit data files)
+# data/
+
+# Local configuration files
+config.local.yaml
+
 # 忽略系统文件
 $RECYCLE.BIN/
 System Volume Information/

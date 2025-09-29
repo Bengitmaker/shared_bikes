@@ -1,14 +1,14 @@
 """
-setup.py - 项目安装配置
+setup.py - Project Installation Configuration
 
-定义了项目的元数据和安装配置。
+Define project metadata and installation configuration.
 """
 
 from setuptools import setup, find_packages
 import os
 
 def read_requirements():
-    """读取requirements.txt文件"""
+    """Read requirements.txt file"""
     requirements_path = os.path.join(os.path.dirname(__file__), 'requirements.txt')
     if not os.path.exists(requirements_path):
         return []
@@ -19,16 +19,16 @@ def read_requirements():
             if line.strip() and not line.startswith('#')
         ]
     
-    # 过滤出实际的包依赖（排除空行和注释）
+    # Filter out actual package dependencies (exclude empty lines and comments)
     package_requirements = []
     for req in requirements:
-        # 跳过以#开头的注释行
+        # Skip comment lines starting with #
         if req.startswith('#'):
             continue
-        # 跳过空行
+        # Skip empty lines
         if not req.strip():
             continue
-        # 跳过可选依赖（以#开头的行）
+        # Skip optional dependencies (lines starting with a space and then #)
         if req.startswith(' ') and req.lstrip().startswith('#'):
             continue
         package_requirements.append(req)
@@ -36,7 +36,7 @@ def read_requirements():
     return package_requirements
 
 def read_readme():
-    """读取README.md文件"""
+    """Read README.md file"""
     readme_path = os.path.join(os.path.dirname(__file__), 'README.md')
     try:
         with open(readme_path, 'r', encoding='utf-8') as f:
@@ -44,15 +44,15 @@ def read_readme():
     except Exception:
         return "共享单车使用模式聚类分析项目"
 
-# 读取版本信息（如果存在version.txt）
+# Read version information (if version.txt exists)
 def get_version():
-    version_path = os.path.join(os.path.dirname(__file__), 'VERSION.txt')
+    version_path = os.path.join(os.path.dirname(__file__), 'VERSION')
     if os.path.exists(version_path):
         with open(version_path, 'r', encoding='utf-8') as f:
             return f.read().strip()
-    return '0.1.0'
+    return '2.0.0'
 
-# 项目配置
+# Project configuration
 setup(
     name='shared_bikes_analysis',
     version=get_version(),
@@ -62,7 +62,7 @@ setup(
     long_description=read_readme(),
     long_description_content_type='text/markdown',
     url='https://github.com/yourusername/shared_bikes',
-    packages=find_packages(include=['shared_bikes', 'shared_bikes.*']),
+    packages=find_packages(exclude=['tests*', 'docs*', '.venv*', 'notebooks*']),
     package_dir={
         'shared_bikes': '.',
     },
@@ -72,6 +72,9 @@ setup(
             'configs/*.py',
             'data/*',
             'docs/*',
+            'models/*',
+            'logs/*',
+            'output/*',
         ],
     },
     include_package_data=True,
@@ -94,7 +97,8 @@ setup(
             'shared-bikes-run=scripts.run_pipeline:main',
             'shared-bikes-train=scripts.train_model:main',
             'shared-bikes-predict=scripts.predict:main',
-            'shared-bikes-evaluate=scripts.evaluate_model:main'
+            'shared-bikes-evaluate=scripts.evaluate_model:main',
+            'shared-bikes-setup=scripts.setup_data:main'
         ],
     },
     classifiers=[
@@ -109,8 +113,8 @@ setup(
         'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: 3.11',
         'Topic :: Scientific/Engineering :: Artificial Intelligence',
-        'Topic :: Software Development :: Libraries :: Python Modules'
+        'Topic :: Scientific/Engineering :: Information Analysis',
     ],
     python_requires='>=3.8',
-    keywords='bike sharing, clustering, data analysis, machine learning',
+    keywords='shared bikes, clustering, machine learning, data analysis',
 )

@@ -1,9 +1,3 @@
-"""
-预测脚本
-
-使用训练好的模型进行预测。
-"""
-
 import os
 import sys
 from pathlib import Path
@@ -12,12 +6,30 @@ import numpy as np
 import joblib
 import argparse
 
-# 添加项目根目录到Python路径
-root_dir = Path(__file__).parent.parent
-sys.path.append(str(root_dir))
+# Project root path
+project_root = Path(__file__).parent.parent.absolute()
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
-# 导入配置
-from shared_bikes.configs import config
+# Configuration manager
+try:
+    from configs.config_manager import ConfigManager
+    config = ConfigManager()
+except Exception as e:
+    print(f"警告: 配置管理器初始化失败: {e}")
+    config = None
+
+# 从utils目录导入工具函数
+try:
+    from utils.visualization import setup_chinese_font
+except ImportError:
+    # 如果无法导入，添加项目根目录到sys.path再尝试
+    if str(project_root) not in sys.path:
+        sys.path.insert(0, str(project_root))
+    try:
+        from utils.visualization import setup_chinese_font
+    except ImportError:
+        setup_chinese_font = lambda: None  # 提供空实现
 
 def load_model_and_scaler(model_dir: str, model_name: str = "kmeans_model"):
     """
@@ -46,7 +58,7 @@ def load_model_and_scaler(model_dir: str, model_name: str = "kmeans_model"):
     
     return model, scaler
 
-def prepare_prediction_data(df: pd.DataFrame) -> np.ndarray:
+def prepare_prediction_data(df: pd.DataFrame) -> tuple:
     """
     准备预测数据
     
@@ -54,10 +66,19 @@ def prepare_prediction_data(df: pd.DataFrame) -> np.ndarray:
         df (pd.DataFrame): 原始数据
         
     Returns:
-        np.ndarray: 准备好的特征数据
+        tuple: (特征数据, 清洗后的数据)
     """
+    # 如果没有hour列，从datetime列中提取
+    if 'hour' not in df.columns:
+        df['hour'] = pd.to_datetime(df['datetime']).dt.hour
+    
     # 选择与训练时相同的特征
     feature_columns = ['hour', 'workingday', 'weather', 'temp', 'humidity', 'windspeed']
+    
+    # 检查特征列是否存在
+    missing_columns = [col for col in feature_columns if col not in df.columns]
+    if missing_columns:
+        raise ValueError(f"数据中缺少以下特征列: {missing_columns}")
     
     # 处理缺失值
     df_clean = df.dropna(subset=feature_columns)
@@ -66,7 +87,7 @@ def prepare_prediction_data(df: pd.DataFrame) -> np.ndarray:
     X = df_clean[feature_columns].values
     
     print(f"预测数据准备完成: {X.shape}")
-    return X
+    return X, df_clean
 
 def predict_clusters(data_path: str, model_dir: str, output_path: str):
     """
@@ -115,7 +136,7 @@ def predict_clusters(data_path: str, model_dir: str, output_path: str):
         percentage = (count / len(result_df)) * 100
         print(f"  聚类 {cluster_id}: {count} 样本 ({percentage:.1f}%)")
     
-    print("\n✅ 预测完成！")
+    print("\nSuccess 预测完成！")
     return result_df
 
 def main():
@@ -128,13 +149,16 @@ def main():
     args = parser.parse_args()
     
     # 获取配置
-    models_config = config.get_path('paths.models')
-    model_dir = args.model_dir or str(models_config)
+    if config is not None:
+        models_config = config.get_path('paths.models')
+        model_dir = args.model_dir or str(models_config)
+    else:
+        model_dir = args.model_dir or "models"
     
     try:
         predict_clusters(args.data_path, model_dir, args.output_path)
     except Exception as e:
-        print(f"❌ 预测失败: {e}")
+        print(f"Error 预测失败: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":

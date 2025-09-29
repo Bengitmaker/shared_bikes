@@ -1,9 +1,3 @@
-"""
-管道运行脚本
-
-协调数据准备、模型训练、预测和评估的完整流程。
-"""
-
 import os
 import sys
 from pathlib import Path
@@ -11,26 +5,47 @@ import argparse
 import subprocess
 import logging
 
-# 添加项目根目录到Python路径
-root_dir = Path(__file__).parent.parent
-sys.path.append(str(root_dir))
+# Project root path
+project_root = Path(__file__).parent.parent.absolute()
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
-# 导入配置
-from shared_bikes.configs import config
+# Configuration manager
+from configs.config_manager import ConfigManager
+
+# Create global config instance
+try:
+    config = ConfigManager()
+except Exception as e:
+    print(f"警告: 配置管理器初始化失败: {e}")
+    config = None
 
 def setup_logging():
     """设置日志"""
-    log_file = config.get_path('logging.file')
-    log_file.parent.mkdir(parents=True, exist_ok=True)
-    
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.FileHandler(log_file, encoding='utf-8'),
-            logging.StreamHandler(sys.stdout)
-        ]
-    )
+    try:
+        if config:
+            log_file = config.get_path('logging.file')
+            log_file.parent.mkdir(parents=True, exist_ok=True)
+            
+            logging.basicConfig(
+                level=logging.INFO,
+                format='%(asctime)s - %(levelname)s - %(message)s',
+                handlers=[
+                    logging.FileHandler(log_file, encoding='utf-8'),
+                    logging.StreamHandler(sys.stdout)
+                ]
+            )
+        else:
+            logging.basicConfig(
+                level=logging.INFO,
+                format='%(asctime)s - %(levelname)s - %(message)s',
+                handlers=[
+                    logging.StreamHandler(sys.stdout)
+                ]
+            )
+    except Exception as e:
+        print(f"警告: 日志配置失败: {e}")
+        logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     
     return logging.getLogger(__name__)
 
@@ -55,17 +70,23 @@ def run_script(script_name: str, args: list) -> bool:
     
     try:
         logger.info(f"运行脚本: {' '.join(cmd)}")
-        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+        result = subprocess.run(cmd, check=True, capture_output=True, text=True, encoding='utf-8', errors='replace')
         logger.info(f"{script_name} 执行成功")
+        if result.stdout:
+            logger.debug(f"标准输出: {result.stdout}")
         return True
         
     except subprocess.CalledProcessError as e:
         logger.error(f"{script_name} 执行失败: {e}")
-        logger.error(f"错误输出: {e.stderr}")
+        if e.stdout:
+            logger.error(f"标准输出: {e.stdout}")
+        if e.stderr:
+            logger.error(f"错误输出: {e.stderr}")
         return False
     except Exception as e:
         logger.error(f"运行 {script_name} 时发生异常: {e}")
         return False
+
 def main():
     """主函数"""
     logger = setup_logging()
@@ -93,7 +114,7 @@ def main():
     try:
         if args.step in ['all', 'setup']:
             logger.info("=== 步骤1: 数据准备 ===")
-            if not run_script('setup_data.py'): # type: ignore
+            if not run_script('setup_data.py', []):  # 修复：添加缺失的args参数
                 success = False
                 if args.step != 'all':
                     return
@@ -109,10 +130,8 @@ def main():
         if args.step in ['all', 'predict']:
             logger.info("=== 步骤3: 预测 ===")
             predict_args = common_args.copy()
-            if args.data_path:
-                predict_args.remove('--data-path')
-                predict_args.remove(args.data_path)
-            predict_args.extend(['--data-path', 'data/raw/test.csv'])
+            # 使用正确的测试数据路径
+            predict_args.extend(['--data-path', 'data/test.csv'])
             if not run_script('predict.py', predict_args):
                 success = False
                 if args.step != 'all':
@@ -121,7 +140,7 @@ def main():
         if args.step in ['all', 'evaluate']:
             logger.info("=== 步骤4: 模型评估 ===")
             eval_args = common_args.copy()
-            eval_args.extend(['--data-path', 'data/raw/train.csv'])
+            eval_args.extend(['--data-path', 'data/train.csv'])
             if not run_script('evaluate_model.py', eval_args):
                 success = False
                 
@@ -132,10 +151,12 @@ def main():
         logger.error(f"管道执行发生未预期的错误: {e}")
         success = False
     
+    # 只有当所有指定步骤都成功执行时才报告成功
+    # 如果某个步骤失败，则success为False，管道执行失败
     if success:
-        logger.info("✅ 管道执行完成！")
+        logger.info("Success 管道执行完成！")
     else:
-        logger.error("❌ 管道执行失败")
+        logger.error("Error 管道执行失败")
         sys.exit(1)
 
 if __name__ == "__main__":

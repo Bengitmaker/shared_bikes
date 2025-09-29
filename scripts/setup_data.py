@@ -1,30 +1,38 @@
-"""
-数据准备脚本
-
-用于初始化项目所需的数据目录和示例数据。
-"""
-
 import os
 import sys
 from pathlib import Path
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
+import argparse
+
+# Project root path
+project_root = Path(__file__).parent.parent.absolute()
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
+# Configuration manager
+try:
+    from configs.config_manager import ConfigManager
+    config = ConfigManager()
+except Exception as e:
+    print(f"警告: 配置管理器初始化失败: {e}")
+    config = None
 
 
 def create_sample_data(n_samples: int = 1000) -> pd.DataFrame:
     """
-    创建示例共享单车数据
+    Create sample bike-sharing data
     
     Args:
-        n_samples (int): 样本数量
+        n_samples (int): Number of samples
         
     Returns:
-        pd.DataFrame: 生成的示例数据
+        pd.DataFrame: Generated sample data
     """
     np.random.seed(42)
     
-    # 生成日期时间
+    # Generate datetime
     start_date = datetime(2023, 1, 1)
     dates = [start_date + timedelta(hours=i) for i in range(n_samples)]
     
@@ -43,19 +51,19 @@ def create_sample_data(n_samples: int = 1000) -> pd.DataFrame:
     }
     
     df = pd.DataFrame(data)
-    # 计算总租赁量
+    # Calculate total rentals
     df['count'] = df['casual'] + df['registered']
     
     return df
 
 
 def setup_data_directories():
-    """创建必要的数据目录"""
+    """Create necessary data directories"""
     data_dir = Path("data")
     raw_dir = data_dir / "raw"
     processed_dir = data_dir / "processed"
     
-    # 创建目录
+    # Create directories
     for directory in [data_dir, raw_dir, processed_dir]:
         directory.mkdir(exist_ok=True)
         print(f"创建目录: {directory}")
@@ -63,33 +71,33 @@ def setup_data_directories():
     return data_dir, raw_dir, processed_dir
 
 def main():
-    """主函数"""
+    """Main function"""
     print("开始设置项目数据...")
     
-    # 创建目录
+    # Create directories
     data_dir, raw_dir, processed_dir = setup_data_directories()
     
-    # 生成示例数据
+    # Generate sample data
     print("生成示例数据...")
     sample_data = create_sample_data(1000)
     
-    # 保存原始数据
+    # Save raw data
     raw_path = raw_dir / "train.csv"
     sample_data.to_csv(raw_path, index=False)
     print(f"保存原始数据到: {raw_path}")
     
-    # 保存处理后的数据（这里只是复制）
+    # Save processed data (just copy)
     processed_path = processed_dir / "train_processed.csv"
     sample_data.to_csv(processed_path, index=False)
     print(f"保存处理后数据到: {processed_path}")
     
-    # 创建测试数据
+    # Create test data
     test_data = create_sample_data(200)
     test_path = raw_dir / "test.csv"
     test_data.to_csv(test_path, index=False)
     print(f"保存测试数据到: {test_path}")
     
-    print("\n✅ 数据设置完成！")
+    print("\nSuccess 数据设置完成！")
     print(f"- 总样本数: {len(sample_data)}")
     print(f"- 测试样本数: {len(test_data)}")
     print(f"- 数据目录结构已创建")

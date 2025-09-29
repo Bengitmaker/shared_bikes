@@ -1,15 +1,15 @@
 """
-Configuration package initialization.
-This directory contains configuration files and utilities for the application.
+Configuration Package Initialization
+Directory with configuration files and utilities.
 """
 
 from .config_manager import ConfigManager
 from pathlib import Path
 
-# 获取项目根目录
+# Project root directory
 root_dir = Path(__file__).parent.parent.absolute()
 
-# 便捷访问
-config = ConfigManager(str(root_dir / "configs" / "config.yaml"))
+# Create default config instance
+config = ConfigManager()
 
 __all__ = ['ConfigManager', 'config']
