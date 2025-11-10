@@ -1,183 +1,131 @@
 import os
 import yaml
-from pathlib import Path
-from typing import Any, Dict, Optional
+import os
 import logging
-
-# Get project root directory
-def get_project_root():
-    """Find project root directory by looking for setup.py"""
-    current_path = Path(__file__).parent.absolute()
-    while current_path != current_path.parent:
-        if (current_path / "setup.py").exists():
-            return current_path
-        current_path = current_path.parent
-    # Fallback to default if setup.py not found
-    return Path(__file__).parent.parent.absolute()
+from pathlib import Path
+from typing import Any, Dict, Union
 
 
 class ConfigManager:
-    """Configuration Manager Class"""
+    """配置管理器类"""
     
-    _instance = None
-    _initialized = False
-    
-    def __new__(cls, config_path: str = "configs/config.yaml"):
+    def __init__(self, config_path: str = None):
         """
-        Singleton pattern - ensure only one config manager instance globally
+        初始化配置管理器
         
         Args:
-            config_path (str): Configuration file path
+            config_path (str, optional): 配置文件路径
         """
-        if cls._instance is None:
-            cls._instance = super(ConfigManager, cls).__new__(cls)
-        return cls._instance
-    
-    def __init__(self, config_path: str = "configs/config.yaml"):
-        """
-        Initialize the configuration manager
+        # 设置默认配置文件路径
+        if config_path is None:
+            # 获取项目根目录
+            project_root = Path(__file__).parent.parent
+            config_path = project_root / "configs" / "config.yaml"
         
-        Args:
-            config_path (str): Configuration file path
-        """
-        # Prevent re-initialization
-        if ConfigManager._initialized:
-            return
-            
-        # Determine project root directory
-        self.project_root = self._find_project_root()
-        
-        # Determine configuration file path
-        if Path(config_path).is_absolute():
-            self.config_path = Path(config_path)
-        else:
-            self.config_path = self.project_root / config_path
-            
-        # Ensure configuration file exists
-        if not self.config_path.exists():
-            raise FileNotFoundError(f"Configuration file not found: {self.config_path}")
-            
-        self._config: Optional[Dict[str, Any]] = None
-        self.load_config()
-        self.create_directories()
+        self.config_path = Path(config_path)
+        self.config = self._load_config()
+        self._validate_config()
         self.configure_logging()
-        
-        # Mark as initialized
-        ConfigManager._initialized = True
     
-    def load_config(self) -> None:
-        """Load configuration file"""
-        try:
-            with open(self.config_path, 'r', encoding='utf-8') as file:
-                self._config = yaml.safe_load(file)
-        except Exception as e:
-            raise RuntimeError(f"Failed to load configuration file: {e}")
-    
-    def get(self, key: str, default: Any = None) -> Any:
+    def _load_config(self) -> Dict[str, Any]:
         """
-        Get configuration value
+        加载配置文件
+        
+        Returns:
+            dict: 配置字典
+        """
+        if not self.config_path.exists():
+            raise FileNotFoundError(f"配置文件不存在: {self.config_path}")
+        
+        with open(self.config_path, 'r', encoding='utf-8') as f:
+            return yaml.safe_load(f) or {}
+    
+    def _validate_config(self):
+        """验证配置文件"""
+        required_sections = ['paths', 'data_processing', 'model']
+        for section in required_sections:
+            if section not in self.config:
+                raise ValueError(f"配置文件缺少必需的节: {section}")
+        
+        # 验证路径配置
+        required_paths = ['data', 'models', 'output']
+        for path_key in required_paths:
+            if path_key not in self.config.get('paths', {}):
+                raise ValueError(f"配置文件缺少必需的路径: {path_key}")
+    
+    def get(self, key_path: str, default: Any = None) -> Any:
+        """
+        获取配置值
         
         Args:
-            key (str): Configuration key, supports dot-separated nested keys, e.g., 'paths.data'
-            default (Any): Default value
+            key_path (str): 配置键路径，使用点号分隔（如"model.kmeans.n_clusters"）
+            default (Any, optional): 默认值
             
         Returns:
-            Any: Configuration value or default value
+            Any: 配置值
         """
-        if not self._config:
-            return default
-            
-        keys = key.split('.')
-        value = self._config
+        keys = key_path.split('.')
+        value = self.config
         
         try:
-            for k in keys:
-                value = value[k]
+            for key in keys:
+                value = value[key]
             return value
         except (KeyError, TypeError):
             return default
     
-    def _find_project_root(self) -> Path:
+    def get_path(self, key_path: str) -> Path:
         """
-        Find project root directory
-        
-        Returns:
-            Path: Project root directory path
-        """
-        # Start from the current file and search upwards for a directory containing 'configs' and 'setup.py'
-        current_path = Path(__file__).parent
-        while current_path != current_path.parent:  # Stop when reaching the root directory
-            if (current_path / "configs").exists() and (current_path / "setup.py").exists():
-                return current_path.absolute()
-            current_path = current_path.parent
-        
-        # If not found, use the parent directory of the configuration manager file
-        return Path(__file__).parent.parent.absolute()
-    
-    def get_path(self, path_key: str) -> Path:
-        """
-        Get path configuration, supports relative and absolute paths
+        获取路径配置值
         
         Args:
-            path_key (str): Path configuration key
+            key_path (str): 配置键路径
             
         Returns:
-            Path: Path object
+            Path: 路径对象
         """
-        path_str = self.get(path_key, "")
-        if not path_str:
-            return Path()
-            
+        path_str = self.get(key_path)
+        if path_str is None:
+            raise ValueError(f"路径配置不存在: {key_path}")
+        
+        # 处理相对路径
         path = Path(path_str)
+        if not path.is_absolute():
+            # 相对于项目根目录
+            project_root = self.config_path.parent.parent
+            path = project_root / path
         
-        # If it's an absolute path, return it directly
-        if path.is_absolute():
-            return path.absolute()
-        
-        # If it's a relative path, relative to the project root
-        return (self.project_root / path).absolute()
+        # 确保目录存在
+        path.parent.mkdir(parents=True, exist_ok=True)
+        return path
     
-    def create_directories(self) -> None:
-        """Create necessary directories based on configuration"""
-        if not self._config:
-            return
-            
-        # Create all paths defined in the configuration
-        paths_config = self.get('paths', {})
-        for path_key, path_value in paths_config.items():
-            if path_value:
-                path = self.get_path(f'paths.{path_key}')
-                path.mkdir(parents=True, exist_ok=True)
-        
-        # Special handling for log directory
-        log_file_path = self.get_path('logging.file')
-        if log_file_path:
-            log_file_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    def configure_logging(self) -> None:
-        """Configure logging system"""
+    def configure_logging(self):
+        """配置日志"""
+        # 获取日志目录
         try:
-            # Try to import project-specific logging configuration
-            from shared_bikes.logs.logger import configure_root_logger
-            configure_root_logger()
-        except ImportError:
-            # If import fails, use basic logging configuration
-            log_level = self.get('logging.level', 'INFO')
-            log_format = self.get('logging.format', '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-                
-            # Configure root logger
-            logging.basicConfig(
-                level=getattr(logging, log_level.upper(), logging.INFO),
-                format=log_format,
-                handlers=[
-                    logging.StreamHandler(),
-                ]
-            )
-                
-            # If log file is configured, add file handler
-            log_file = self.get_path('logging.file')
-            if log_file:
-                log_file.parent.mkdir(parents=True, exist_ok=True)
-                file_handler = logging.FileHandler(log_file, encoding='utf-8')
-                file_handler.setFormatter(logging.Formatter(log_format))
-                logging.getLogger().addHandler(file_handler)
+            log_dir = self.get_path('paths.logs')
+        except ValueError:
+            # 如果没有配置日志路径，使用默认路径
+            project_root = self.config_path.parent.parent
+            log_dir = project_root / "logs"
+            log_dir.mkdir(parents=True, exist_ok=True)
+        
+        # 创建日志目录
+        log_dir.mkdir(parents=True, exist_ok=True)
+        
+        # 日志文件路径
+        log_file = log_dir / "app.log"
+        
+        # 配置根日志记录器
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            handlers=[
+                logging.FileHandler(log_file, encoding='utf-8'),
+                logging.StreamHandler()
+            ]
+        )
+
+
+# 创建全局配置实例
+config = ConfigManager()

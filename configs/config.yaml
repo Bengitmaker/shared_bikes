@@ -1,29 +1,32 @@
-# shared_bikes 项目配置文件
+# 共享单车分析项目配置文件
 
-# 数据路径配置
+# 路径配置
 paths:
+  # 数据路径
   data: "data/"
-  output: "output/"
+  # 模型路径
   models: "models/"
+  # 输出路径
+  output: "output/"
+  # 日志路径
+  logs: "logs/"
 
 # 数据处理配置
 data_processing:
-  chunk_size: 10000
+  # 日期格式
   date_format: "%Y-%m-%d %H:%M:%S"
-  timezone: "Asia/Shanghai"
+  # 批处理大小
+  chunk_size: 1000
 
 # 模型配置
 model:
+  # K-means聚类配置
   kmeans:
+    # 聚类数量
     n_clusters: 5
-    random_state: 42
+    # 最大迭代次数
     max_iter: 300
+    # 随机种子
+    random_state: 42
+    # 初始化方法重复次数
     n_init: 10
-
-# 日志配置
-logging:
-  level: "INFO"
-  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-  file: "logs/app.log"
-  max_bytes: 10485760
-  backup_count: 5

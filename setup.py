@@ -54,7 +54,7 @@ def get_version():
 
 # Project configuration
 setup(
-    name='shared_bikes_analysis',
+    name='shared-bikes-analysis',
     version=get_version(),
     author='Your Name',
     author_email='your.email@example.com',
@@ -63,20 +63,6 @@ setup(
     long_description_content_type='text/markdown',
     url='https://github.com/yourusername/shared_bikes',
     packages=find_packages(exclude=['tests*', 'docs*', '.venv*', 'notebooks*']),
-    package_dir={
-        'shared_bikes': '.',
-    },
-    package_data={
-        'shared_bikes': [
-            'configs/*.yaml',
-            'configs/*.py',
-            'data/*',
-            'docs/*',
-            'models/*',
-            'logs/*',
-            'output/*',
-        ],
-    },
     include_package_data=True,
     install_requires=read_requirements(),
     extras_require={
@@ -94,11 +80,11 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'shared-bikes-run=scripts.run_pipeline:main',
-            'shared-bikes-train=scripts.train_model:main',
-            'shared-bikes-predict=scripts.predict:main',
-            'shared-bikes-evaluate=scripts.evaluate_model:main',
-            'shared-bikes-setup=scripts.setup_data:main'
+            'shared-bikes-run=shared_bikes.cli:main',
+            'shared-bikes-train=shared_bikes.train:main',
+            'shared-bikes-predict=shared_bikes.predict:main',
+            'shared-bikes-evaluate=shared_bikes.evaluate:main',
+            'shared-bikes-setup=shared_bikes.setup:main'
         ],
     },
     classifiers=[

@@ -5,7 +5,7 @@ feature_columns:
 - temp
 - humidity
 - windspeed
-inertia: 36102.65834845486
+inertia: 3559.9883525531363
 model_name: kmeans_model
 n_clusters: 5
-timestamp: '2025-09-29T17:38:57.327334'
+timestamp: '2025-11-10T22:11:50.316349'
